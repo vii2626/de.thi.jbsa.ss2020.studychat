@@ -224,4 +224,8 @@ public class ChatView
     PostMessageCmd cmd = new PostMessageCmd(userId, message);
     restTemplate.postForEntity(sendMessageUrl, cmd, PostMessageCmd.class);
   }
+
+  private void repeatedMessage() {
+
+  }
 }

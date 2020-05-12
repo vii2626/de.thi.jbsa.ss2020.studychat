@@ -5,6 +5,8 @@ import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
 import javax.jms.Topic;
+
+import de.thi.jbsa.prototype.model.event.MessageRepeatedEvent;
 import org.springframework.jms.core.JmsTemplate;
 import org.springframework.stereotype.Service;
 import de.thi.jbsa.prototype.domain.MessageDoc;
@@ -59,4 +61,10 @@ public class MessageService {
     messageRepository.save(doc);
     jmsTemplate.convertAndSend(topic, event);
   }
+
+  public void handleMessageRepeatedEvent(MessageRepeatedEvent event) {
+
+  }
+
+
 }

@@ -6,6 +6,8 @@ import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.jms.Queue;
+
+import de.thi.jbsa.prototype.model.event.MessageRepeatedEvent;
 import org.checkerframework.checker.nullness.Opt;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jms.core.JmsTemplate;
@@ -59,6 +61,7 @@ public class MessageProcessorService {
   public void postMessage(PostMessageCmd cmd) {
 
     log.info("creating event for ... " + cmd);
+
     MessagePostedEvent event = new MessagePostedEvent();
     event.setCmdUuid(cmd.getUuid());
     event.setContent(cmd.getContent());
@@ -70,14 +73,34 @@ public class MessageProcessorService {
       saveAndSendEvent(mentionEvent);
     });
 
-    saveAndSendEvent(event);
+    EventEntity eventEntity = eventRepository
+            .findFirstByEventNameAndValueContainingOrderByIdDesc(
+                    EventName.REPEATED, cmd.getContent()
+            );
+
+    if (eventEntity != null) {
+
+      MessageRepeatedEvent messageRepeatedEvent = new MessageRepeatedEvent();
+      messageRepeatedEvent.setCmdUuid(cmd.getUuid());
+      messageRepeatedEvent.setContent(cmd.getContent());
+      messageRepeatedEvent.setUserId(cmd.getUserId());
+
+      onlySaveEvent(event);
+    } else {
+      saveAndSendEvent(event);
+    }
+
   }
 
   private void saveAndSendEvent(AbstractEvent event) {
+    onlySaveEvent(event);
+    sendEvent(event);
+  }
+
+  private void onlySaveEvent(AbstractEvent event) {
     log.info("Saving event " + event);
     EventEntity entity = saveEvent(event);
     event.setEntityId(entity.getId());
-    sendEvent(event);
   }
 
   private EventEntity saveEvent(AbstractEvent event) {
@@ -88,6 +111,8 @@ public class MessageProcessorService {
       entity.setEventName(EventName.MESSAGE_POSTED);
     } else if (event instanceof MentionEvent) {
       entity.setEventName(EventName.MENTION);
+    } else if (event instanceof MessageRepeatedEvent) {
+      entity.setEventName(EventName.REPEATED);
     }
     log.debug("Writing event... : " + json);
     eventRepository.save(entity);

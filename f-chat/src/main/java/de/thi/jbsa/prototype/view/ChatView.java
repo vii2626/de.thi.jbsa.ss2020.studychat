@@ -9,6 +9,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Stream;
+
+import de.thi.jbsa.prototype.model.event.MessageRepeatedEvent;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.RestTemplate;
@@ -46,7 +48,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Push(transport = Transport.WEBSOCKET)
 public class ChatView
-  extends VerticalLayout {
+        extends VerticalLayout {
 
   private enum EventHandler {
     MESSAGE_POSTED(MessagePostedEvent.class) {
@@ -63,6 +65,12 @@ public class ChatView
           Notification.show("You were mentioned in a message from " + mentionEvent.getUserId());
         }
       }
+    },
+    MESSAGE_REPEATED(MessageRepeatedEvent.class) {
+      @Override
+      void handle(ChatView chatView, AbstractEvent event) {
+
+      }
     };
 
     private final Class<? extends AbstractEvent> eventType;
@@ -76,9 +84,9 @@ public class ChatView
     static EventHandler valueOf(AbstractEvent event) {
 
       return Stream.of(values())
-                   .filter(h -> h.eventType.equals(event.getClass()))
-                   .findAny()
-                   .orElseThrow(() -> new IllegalArgumentException("Event not supported: " + event));
+              .filter(h -> h.eventType.equals(event.getClass()))
+              .findAny()
+              .orElseThrow(() -> new IllegalArgumentException("Event not supported: " + event));
     }
   }
 
@@ -126,17 +134,22 @@ public class ChatView
 
     msgListBox = new ListBox<>();
     MessageFormat msgListBoxTipFormat = new MessageFormat(
-      "" +
-        "Sent: \t\t{0,time,short}\n" +
-        "From: \t\t{1}\n" +
-        "Cmd-UUID: \t{2}\n" +
-        "Event-UUID: \t{3}\n" +
-        "Entity-ID: \t\t{4}\n");
+            "" +
+                    "Sent: \t\t{0,time,short}\n" +
+                    "From: \t\t{1}\n" +
+                    "Cmd-UUID: \t{2}\n" +
+                    "Event-UUID: \t{3}\n" +
+                    "Entity-ID: \t\t{4}\n");
 
     msgListBox.setRenderer(new ComponentRenderer<>(msg -> {
-      Label label = new Label(msg.getContent());
+      Label label;
+      if (msg.getOccurCounter() > 1) {
+        label = new Label(msg.getContent() + " (x" + msg.getOccurCounter() + ")");
+      } else {
+        label = new Label(msg.getContent());
+      }
       label.setEnabled(false);
-      Object[] strings = { msg.getCreated(), msg.getSenderUserId(), msg.getCmdUuid(), msg.getEventUuid(), msg.getEntityId() };
+      Object[] strings = {msg.getCreated(), msg.getSenderUserId(), msg.getCmdUuid(), msg.getEventUuid(), msg.getEntityId()};
       String tip = msgListBoxTipFormat.format(strings);
       label.setTitle(tip);
       return label;

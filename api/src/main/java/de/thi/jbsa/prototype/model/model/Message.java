@@ -28,4 +28,6 @@ public class Message {
   private UUID eventUuid;
 
   private String senderUserId;
+
+  private Integer occurCounter = 1;
 }

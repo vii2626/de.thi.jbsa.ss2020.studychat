@@ -5,5 +5,6 @@ package de.thi.jbsa.prototype.model;
  */
 public enum EventName {
   MESSAGE_POSTED,
-  MENTION
+  MENTION,
+  REPEATED
 }

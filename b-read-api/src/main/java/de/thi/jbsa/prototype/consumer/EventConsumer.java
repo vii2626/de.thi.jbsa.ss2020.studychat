@@ -1,5 +1,6 @@
 package de.thi.jbsa.prototype.consumer;
 
+import de.thi.jbsa.prototype.model.event.MessageRepeatedEvent;
 import org.springframework.jms.annotation.EnableJms;
 import org.springframework.jms.annotation.JmsListener;
 import org.springframework.stereotype.Component;
@@ -28,6 +29,8 @@ public class EventConsumer {
       messageService.handleMessagePostedEvent((MessagePostedEvent) event);
     } else if (event instanceof MentionEvent) {
       messageService.handleMentionEvent((MentionEvent) event);
+    } else if (event instanceof MessageRepeatedEvent) {
+      messageService.handleMessageRepeatedEvent((MessageRepeatedEvent) event);
     } else {
       throw new IllegalArgumentException("Not supported event: " + event);
     }

@@ -75,7 +75,7 @@ public class MessageProcessorService {
 
     EventEntity eventEntity = eventRepository
             .findFirstByEventNameAndValueContainingOrderByIdDesc(
-                    EventName.REPEATED, cmd.getContent()
+                    EventName.MESSAGE_POSTED, cmd.getContent()
             );
 
     if (eventEntity != null) {
@@ -86,6 +86,7 @@ public class MessageProcessorService {
       messageRepeatedEvent.setUserId(cmd.getUserId());
 
       onlySaveEvent(event);
+      saveAndSendEvent(messageRepeatedEvent);
     } else {
       saveAndSendEvent(event);
     }

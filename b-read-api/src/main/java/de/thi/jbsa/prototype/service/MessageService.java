@@ -63,7 +63,10 @@ public class MessageService {
   }
 
   public void handleMessageRepeatedEvent(MessageRepeatedEvent event) {
-
+    MessageDoc doc = messageRepository.findFirstByOrderByIdDesc(event.getContent());
+    doc.getMessage().setOccurCounter(doc.getMessage().getOccurCounter() + 1);
+    messageRepository.save(doc);
+    jmsTemplate.convertAndSend(topic, event);
   }
 
 

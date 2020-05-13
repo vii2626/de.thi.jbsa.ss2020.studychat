@@ -69,7 +69,7 @@ public class ChatView
     MESSAGE_REPEATED(MessageRepeatedEvent.class) {
       @Override
       void handle(ChatView chatView, AbstractEvent event) {
-
+        chatView.repeatedMessage((MessageRepeatedEvent) event);
       }
     };
 
@@ -170,6 +170,30 @@ public class ChatView
     messagesForListBox.add(msg);
   }
 
+  private void repeatedMessage(MessageRepeatedEvent event) {
+    MessageFormat msgListBoxTipFormat = new MessageFormat(
+            "" +
+                    "Sent: \t\t{0,time,short}\n" +
+                    "From: \t\t{1}\n" +
+                    "Cmd-UUID: \t{2}\n" +
+                    "Event-UUID: \t{3}\n" +
+                    "Entity-ID: \t\t{4}\n");
+
+    msgListBox.setRenderer(new ComponentRenderer<>(msg -> {
+      Label label;
+      if (msg.getOccurCounter() > 1) {
+        label = new Label(msg.getContent() + " (x" + msg.getOccurCounter() + ")");
+      } else {
+        label = new Label(msg.getContent());
+      }
+      label.setEnabled(false);
+      Object[] strings = {msg.getCreated(), msg.getSenderUserId(), msg.getCmdUuid(), msg.getEventUuid(), msg.getEntityId()};
+      String tip = msgListBoxTipFormat.format(strings);
+      label.setTitle(tip);
+      return label;
+    }));
+  }
+
   private void addNewMessageEvent(AbstractEvent event) {
     addNewMessagesEvent(Collections.singletonList(event));
   }
@@ -225,7 +249,4 @@ public class ChatView
     restTemplate.postForEntity(sendMessageUrl, cmd, PostMessageCmd.class);
   }
 
-  private void repeatedMessage() {
-
-  }
 }

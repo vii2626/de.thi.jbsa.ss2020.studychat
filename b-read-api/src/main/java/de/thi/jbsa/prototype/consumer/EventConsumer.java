@@ -7,6 +7,7 @@ import org.springframework.stereotype.Component;
 import de.thi.jbsa.prototype.model.event.Event;
 import de.thi.jbsa.prototype.model.event.MentionEvent;
 import de.thi.jbsa.prototype.model.event.MessagePostedEvent;
+import de.thi.jbsa.prototype.model.event.MessageRepeatedEvent;
 import de.thi.jbsa.prototype.service.MessageService;
 import lombok.extern.java.Log;
 

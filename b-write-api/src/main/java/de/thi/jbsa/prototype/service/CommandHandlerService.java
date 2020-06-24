@@ -1,17 +1,10 @@
 package de.thi.jbsa.prototype.service;
 
 import javax.jms.Queue;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.jms.core.JmsTemplate;
 import org.springframework.stereotype.Service;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
 import de.thi.jbsa.prototype.model.cmd.Cmd;
-import de.thi.jbsa.prototype.model.cmd.PostMessageCmd;
-import de.thi.jbsa.prototype.model.event.MessagePostedEvent;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.java.Log;
 
 /**
@@ -19,16 +12,12 @@ import lombok.extern.java.Log;
  */
 @Service
 @Log
+@RequiredArgsConstructor
 public class CommandHandlerService {
-
-  private final Queue queue;
 
   private final JmsTemplate jmsTemplate;
 
-  public CommandHandlerService(Queue queue, JmsTemplate jmsTemplate) {
-    this.queue = queue;
-    this.jmsTemplate = jmsTemplate;
-  }
+  private final Queue queue;
 
   public void handleCommand(Cmd cmd) {
     jmsTemplate.convertAndSend(queue, cmd);

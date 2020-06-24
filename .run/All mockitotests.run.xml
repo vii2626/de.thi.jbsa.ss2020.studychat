@@ -1,0 +1,25 @@
+<component name="ProjectRunConfigurationManager">
+    <configuration default="false" name="All mockito tests" type="JUnit" factoryName="JUnit">
+        <useClassPathOnly/>
+        <extension name="coverage" sample_coverage="false">
+            <pattern>
+                <option name="PATTERN" value="de.thi.jbsa.prototype.*"/>
+                <option name="ENABLED" value="true"/>
+            </pattern>
+        </extension>
+        <option name="MAIN_CLASS_NAME" value=""/>
+        <option name="METHOD_NAME" value=""/>
+        <option name="TEST_OBJECT" value="pattern"/>
+        <option name="PARAMETERS" value=""/>
+        <option name="WORKING_DIRECTORY" value="%MODULE_WORKING_DIR%"/>
+        <option name="TEST_SEARCH_SCOPE">
+            <value defaultName="wholeProject"/>
+        </option>
+        <patterns>
+            <pattern testClass=".*?(?&lt;!I)Test"/>
+        </patterns>
+        <method v="2">
+            <option name="Make" enabled="true"/>
+        </method>
+    </configuration>
+</component>

@@ -29,5 +29,5 @@ public class Message {
 
   private String senderUserId;
 
-  private Integer occurCounter = 1;
+  private Integer occurCount = 1;
 }

@@ -13,7 +13,8 @@ import lombok.NoArgsConstructor;
   property = "jsontype")
 @JsonSubTypes({
   @JsonSubTypes.Type(value = MessagePostedEvent.class, name ="messagePostedEvent"),
-  @JsonSubTypes.Type(value = MentionEvent.class, name ="mentionEvent")
+  @JsonSubTypes.Type(value = MentionEvent.class, name ="mentionEvent"),
+  @JsonSubTypes.Type(value = MessageRepeatedEvent.class, name ="repeatedEvent")
 })
 @Data
 @NoArgsConstructor

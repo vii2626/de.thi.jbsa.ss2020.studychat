@@ -6,20 +6,19 @@ import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.jms.Queue;
-
-import de.thi.jbsa.prototype.model.event.MessageRepeatedEvent;
-import org.checkerframework.checker.nullness.Opt;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jms.core.JmsTemplate;
 import org.springframework.stereotype.Service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import de.thi.jbsa.prototype.aop.Censored;
 import de.thi.jbsa.prototype.model.EventEntity;
 import de.thi.jbsa.prototype.model.EventName;
 import de.thi.jbsa.prototype.model.cmd.PostMessageCmd;
 import de.thi.jbsa.prototype.model.event.AbstractEvent;
 import de.thi.jbsa.prototype.model.event.MentionEvent;
 import de.thi.jbsa.prototype.model.event.MessagePostedEvent;
+import de.thi.jbsa.prototype.model.event.MessageRepeatedEvent;
 import de.thi.jbsa.prototype.repository.EventRepository;
 import lombok.extern.slf4j.Slf4j;
 
@@ -58,10 +57,49 @@ public class MessageProcessorService {
     return mentionEventList;
   }
 
+  private void checkForDuplicateMessagesAndSaveAndSend(MessagePostedEvent event) {
+    Optional<EventEntity> previousMessage = eventRepository.findFirstByEventNameAndValueContainingOrderByIdDesc(EventName.MESSAGE_POSTED,
+      "userId\":\"" + event.getUserId());
+    if (previousMessage.isPresent()) {
+      final MessagePostedEvent messagePostedEventFromDb = (MessagePostedEvent) fromJson(previousMessage.get().getValue());
+      if (event.getContent().equals(messagePostedEventFromDb.getContent())) {
+
+        Optional<EventEntity> previousRepeatedEvent = eventRepository.findFirstByEventNameAndValueContainingOrderByIdDesc(EventName.MESSAGE_REPEATED,
+          "currentMessageEventUUID\":\"" + messagePostedEventFromDb.getUuid());
+        MessagePostedEvent newSavedMessagePostedEvent = (MessagePostedEvent) fromJson(saveEvent(event).getValue());
+        MessageRepeatedEvent.MessageRepeatedEventBuilder newMessageRepeatedEventBuilder =
+          MessageRepeatedEvent.builder()
+                              .currentMessageEventUUID(
+                                newSavedMessagePostedEvent.getUuid());
+        if (previousRepeatedEvent.isPresent()) {
+          MessageRepeatedEvent previousMessageRepeatedEventFromDb = (MessageRepeatedEvent) fromJson(previousRepeatedEvent.get().getValue());
+          newMessageRepeatedEventBuilder = newMessageRepeatedEventBuilder
+            .originalMessageUUID(previousMessageRepeatedEventFromDb.getOriginalMessageUUID())
+            .occurCount(previousMessageRepeatedEventFromDb.getOccurCount() + 1);
+        } else {
+          newMessageRepeatedEventBuilder = newMessageRepeatedEventBuilder
+            .originalMessageUUID(messagePostedEventFromDb.getUuid());
+        }
+        saveAndSendEvent(newMessageRepeatedEventBuilder.build());
+        return;
+      }
+    }
+    log.info("Message appeared for the first time. Just sending it through");
+    saveAndSendEvent(event);
+  }
+
+  private AbstractEvent fromJson(String value) {
+    try {
+      return objectMapper.readValue(value, AbstractEvent.class);
+    } catch (JsonProcessingException e) {
+      throw new IllegalArgumentException("BusinessEvent cannot be deserialized: " + value, e);
+    }
+  }
+
+  @Censored
   public void postMessage(PostMessageCmd cmd) {
 
     log.info("creating event for ... " + cmd);
-
     MessagePostedEvent event = new MessagePostedEvent();
     event.setCmdUuid(cmd.getUuid());
     event.setContent(cmd.getContent());
@@ -73,35 +111,14 @@ public class MessageProcessorService {
       saveAndSendEvent(mentionEvent);
     });
 
-    EventEntity eventEntity = eventRepository
-            .findFirstByEventNameAndValueContainingOrderByIdDesc(
-                    EventName.MESSAGE_POSTED, cmd.getContent()
-            );
-
-    if (eventEntity != null) {
-
-      MessageRepeatedEvent messageRepeatedEvent = new MessageRepeatedEvent();
-      messageRepeatedEvent.setCmdUuid(cmd.getUuid());
-      messageRepeatedEvent.setContent(cmd.getContent());
-      messageRepeatedEvent.setUserId(cmd.getUserId());
-
-      onlySaveEvent(event);
-      saveAndSendEvent(messageRepeatedEvent);
-    } else {
-      saveAndSendEvent(event);
-    }
-
+    checkForDuplicateMessagesAndSaveAndSend(event);
   }
 
   private void saveAndSendEvent(AbstractEvent event) {
-    onlySaveEvent(event);
-    sendEvent(event);
-  }
-
-  private void onlySaveEvent(AbstractEvent event) {
     log.info("Saving event " + event);
     EventEntity entity = saveEvent(event);
     event.setEntityId(entity.getId());
+    sendEvent(event);
   }
 
   private EventEntity saveEvent(AbstractEvent event) {
@@ -113,17 +130,12 @@ public class MessageProcessorService {
     } else if (event instanceof MentionEvent) {
       entity.setEventName(EventName.MENTION);
     } else if (event instanceof MessageRepeatedEvent) {
-      entity.setEventName(EventName.REPEATED);
+      entity.setEventName(EventName.MESSAGE_REPEATED);
     }
     log.debug("Writing event... : " + json);
-    eventRepository.save(entity);
+    EventEntity savedEventEntity = eventRepository.save(entity);
     log.info("Written event to db " + event);
-    return entity;
-  }
-
-  private void sendEvent(AbstractEvent event) {
-    jmsTemplate.convertAndSend(eventQueue, event);
-    log.info("Sent event to queue " + event);
+    return savedEventEntity;
   }
 
   private String toJson(de.thi.jbsa.prototype.model.event.Event event) {
@@ -132,5 +144,10 @@ public class MessageProcessorService {
     } catch (JsonProcessingException e) {
       throw new IllegalArgumentException("BusinessEvent cannot be serialized: " + event, e);
     }
+  }
+
+  private void sendEvent(AbstractEvent event) {
+    jmsTemplate.convertAndSend(eventQueue, event);
+    log.info("Sent event to queue " + event);
   }
 }

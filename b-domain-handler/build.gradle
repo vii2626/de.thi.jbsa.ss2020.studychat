@@ -4,6 +4,7 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.liquibase:liquibase-core'
     implementation 'org.postgresql:postgresql'
+    testImplementation 'com.h2database:h2'
 //    implementation 'org.springframework.boot:spring-boot-starter-data-mongodb'
 //    implementation 'org.springframework.boot:spring-boot-starter-data-rest'
 //    implementation 'de.flapdoodle.embed:de.flapdoodle.embed.mongo'

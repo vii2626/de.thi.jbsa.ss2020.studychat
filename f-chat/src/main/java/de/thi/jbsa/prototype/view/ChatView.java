@@ -9,8 +9,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Stream;
-
-import de.thi.jbsa.prototype.model.event.MessageRepeatedEvent;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.RestTemplate;
@@ -39,6 +37,7 @@ import de.thi.jbsa.prototype.model.cmd.PostMessageCmd;
 import de.thi.jbsa.prototype.model.event.AbstractEvent;
 import de.thi.jbsa.prototype.model.event.MentionEvent;
 import de.thi.jbsa.prototype.model.event.MessagePostedEvent;
+import de.thi.jbsa.prototype.model.event.MessageRepeatedEvent;
 import de.thi.jbsa.prototype.model.model.Message;
 import lombok.extern.slf4j.Slf4j;
 
@@ -57,6 +56,12 @@ public class ChatView
         chatView.addMessageImpl(chatView.createMsg((MessagePostedEvent) event));
       }
     },
+    MESSAGE_REPEATED(MessageRepeatedEvent.class) {
+      @Override
+      void handle(ChatView chatView, AbstractEvent event) {
+        chatView.setCounterForMessage((MessageRepeatedEvent) event);
+      }
+    },
     NOTIFICATION(MentionEvent.class) {
       @Override
       void handle(ChatView chatView, AbstractEvent event) {
@@ -64,12 +69,6 @@ public class ChatView
         if (mentionEvent.getMentionedUser().equals(chatView.sendUserIdField.getValue())) {
           Notification.show("You were mentioned in a message from " + mentionEvent.getUserId());
         }
-      }
-    },
-    MESSAGE_REPEATED(MessageRepeatedEvent.class) {
-      @Override
-      void handle(ChatView chatView, AbstractEvent event) {
-        chatView.repeatedMessage((MessageRepeatedEvent) event);
       }
     };
 
@@ -84,9 +83,9 @@ public class ChatView
     static EventHandler valueOf(AbstractEvent event) {
 
       return Stream.of(values())
-              .filter(h -> h.eventType.equals(event.getClass()))
-              .findAny()
-              .orElseThrow(() -> new IllegalArgumentException("Event not supported: " + event));
+                   .filter(h -> h.eventType.equals(event.getClass()))
+                   .findAny()
+                   .orElseThrow(() -> new IllegalArgumentException("Event not supported: " + event));
     }
   }
 
@@ -134,22 +133,23 @@ public class ChatView
 
     msgListBox = new ListBox<>();
     MessageFormat msgListBoxTipFormat = new MessageFormat(
-            "" +
-                    "Sent: \t\t{0,time,short}\n" +
-                    "From: \t\t{1}\n" +
-                    "Cmd-UUID: \t{2}\n" +
-                    "Event-UUID: \t{3}\n" +
-                    "Entity-ID: \t\t{4}\n");
+      "" +
+        "Sent: \t\t{0,time,short}\n" +
+        "From: \t\t{1}\n" +
+        "Cmd-UUID: \t{2}\n" +
+        "Event-UUID: \t{3}\n" +
+        "Entity-ID: \t\t{4}\n" +
+        "OccurCount: \t\t{5}\n");
 
     msgListBox.setRenderer(new ComponentRenderer<>(msg -> {
       Label label;
-      if (msg.getOccurCounter() > 1) {
-        label = new Label(msg.getContent() + " (x" + msg.getOccurCounter() + ")");
+      if (msg.getOccurCount() > 1) {
+        label = new Label(msg.getOccurCount() + "x - " + msg.getContent());
       } else {
         label = new Label(msg.getContent());
       }
       label.setEnabled(false);
-      Object[] strings = {msg.getCreated(), msg.getSenderUserId(), msg.getCmdUuid(), msg.getEventUuid(), msg.getEntityId()};
+      Object[] strings = { msg.getCreated(), msg.getSenderUserId(), msg.getCmdUuid(), msg.getEventUuid(), msg.getEntityId(), msg.getOccurCount() };
       String tip = msgListBoxTipFormat.format(strings);
       label.setTitle(tip);
       return label;
@@ -170,32 +170,17 @@ public class ChatView
     messagesForListBox.add(msg);
   }
 
-  private void repeatedMessage(MessageRepeatedEvent event) {
-    MessageFormat msgListBoxTipFormat = new MessageFormat(
-            "" +
-                    "Sent: \t\t{0,time,short}\n" +
-                    "From: \t\t{1}\n" +
-                    "Cmd-UUID: \t{2}\n" +
-                    "Event-UUID: \t{3}\n" +
-                    "Entity-ID: \t\t{4}\n");
-
-    msgListBox.setRenderer(new ComponentRenderer<>(msg -> {
-      Label label;
-      if (msg.getOccurCounter() > 1) {
-        label = new Label(msg.getContent() + " (x" + msg.getOccurCounter() + ")");
-      } else {
-        label = new Label(msg.getContent());
-      }
-      label.setEnabled(false);
-      Object[] strings = {msg.getCreated(), msg.getSenderUserId(), msg.getCmdUuid(), msg.getEventUuid(), msg.getEntityId()};
-      String tip = msgListBoxTipFormat.format(strings);
-      label.setTitle(tip);
-      return label;
-    }));
+  private void addNewEvent(AbstractEvent event) {
+    addNewEvent(Collections.singletonList(event));
   }
 
-  private void addNewMessageEvent(AbstractEvent event) {
-    addNewMessagesEvent(Collections.singletonList(event));
+  private void addNewEvent(List<AbstractEvent> eventList) {
+    if (eventList.size() > 0) {
+      lastUUID = Optional.of(eventList.get(eventList.size() - 1).getUuid());
+    }
+
+    eventList.forEach(event -> EventHandler.valueOf(event).handle(this, event));
+    msgListBox.setItems(messagesForListBox);
   }
 
   private void addNewMessages(List<Message> allMessages) {
@@ -203,13 +188,11 @@ public class ChatView
     msgListBox.setItems(messagesForListBox);
   }
 
-  private void addNewMessagesEvent(List<AbstractEvent> eventList) {
-    if (eventList.size() > 0) {
-      lastUUID = Optional.of(eventList.get(eventList.size() - 1).getUuid());
-    }
-
-    eventList.forEach(event -> EventHandler.valueOf(event).handle(this, event));
-    msgListBox.setItems(messagesForListBox);
+  @Override
+  protected void onAttach(AttachEvent attachEvent) {
+    addNewMessages(getMessagesForInitialState());
+    UI ui = attachEvent.getUI();
+    eventRegistration = UiEventConsumer.registrer(abstractEvent -> ui.access(() -> addNewEvent(abstractEvent)));
   }
 
   private Message createMsg(MessagePostedEvent event) {
@@ -232,16 +215,24 @@ public class ChatView
   }
 
   @Override
-  protected void onAttach(AttachEvent attachEvent) {
-    addNewMessages(getMessagesForInitialState());
-    UI ui = attachEvent.getUI();
-    eventRegistration = UiEventConsumer.registrer(abstractEvent -> ui.access(() -> addNewMessageEvent(abstractEvent)));
+  protected void onDetach(DetachEvent detachEvent) {
+    if (eventRegistration != null) {
+      eventRegistration.remove();
+      eventRegistration = null;
+    }
   }
 
-  @Override
-  protected void onDetach(DetachEvent detachEvent) {
-    eventRegistration.remove();
-    eventRegistration = null;
+  private void setCounterForMessage(MessageRepeatedEvent event) {
+    Optional<Message> existingMessage = messagesForListBox.stream()
+                                                          .filter(message -> message.getEventUuid().equals(event.getOriginalMessageUUID()))
+                                                          .findFirst();
+    if (existingMessage.isPresent()) {
+      int messageIndex = messagesForListBox.indexOf(existingMessage.get());
+      messagesForListBox.remove(messageIndex);
+      existingMessage.get().setOccurCount(event.getOccurCount());
+      messagesForListBox.add(messageIndex, existingMessage.get());
+    }
+    msgListBox.setItems(messagesForListBox);
   }
 
   private void sendMessage(String message, String userId) {

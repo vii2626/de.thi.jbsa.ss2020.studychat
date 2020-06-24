@@ -1,27 +1,30 @@
 package de.thi.jbsa.prototype.model.event;
 
+import java.util.UUID;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
-import lombok.NoArgsConstructor;
+import lombok.RequiredArgsConstructor;
 
-import java.util.UUID;
-
+/**
+ * @author Christopher Timm <christopher.timm@beskgroup.com> on 12/5/20
+ */
 @Data
 @AllArgsConstructor
-@NoArgsConstructor
+@RequiredArgsConstructor
 @EqualsAndHashCode(callSuper = true)
-public class MessageRepeatedEvent extends AbstractEvent {
+@Builder
+public class MessageRepeatedEvent
+  extends AbstractEvent {
 
   private final UUID uuid = UUID.randomUUID();
 
-  private UUID cmdUuid;
+  @Builder.Default
+  private int occurCount = 2;
 
-  private String content;
+  private UUID originalMessageUUID;
 
-  private Long entityId;
-
-  private String userId;
-
+  private UUID currentMessageEventUUID;
 
 }

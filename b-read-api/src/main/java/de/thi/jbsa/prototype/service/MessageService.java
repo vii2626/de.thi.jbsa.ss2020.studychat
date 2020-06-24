@@ -3,15 +3,15 @@ package de.thi.jbsa.prototype.service;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import javax.jms.Topic;
-
-import de.thi.jbsa.prototype.model.event.MessageRepeatedEvent;
 import org.springframework.jms.core.JmsTemplate;
 import org.springframework.stereotype.Service;
 import de.thi.jbsa.prototype.domain.MessageDoc;
 import de.thi.jbsa.prototype.model.event.MentionEvent;
 import de.thi.jbsa.prototype.model.event.MessagePostedEvent;
+import de.thi.jbsa.prototype.model.event.MessageRepeatedEvent;
 import de.thi.jbsa.prototype.model.model.Message;
 import de.thi.jbsa.prototype.repository.MessageRepository;
 import lombok.extern.slf4j.Slf4j;
@@ -63,11 +63,15 @@ public class MessageService {
   }
 
   public void handleMessageRepeatedEvent(MessageRepeatedEvent event) {
-    MessageDoc doc = messageRepository.findFirstByOrderByIdDesc(event.getContent());
-    doc.getMessage().setOccurCounter(doc.getMessage().getOccurCounter() + 1);
-    messageRepository.save(doc);
+    Optional<MessageDoc> existingMessage = messageRepository.findFirstByMessage_EventUuidOrderByMessage_CreatedDesc(event.getOriginalMessageUUID());
+    if (!existingMessage.isPresent()){
+      log.error("Didn't find message to increase the counter");
+      return;
+    }
+    log.debug("Message with UUID {} occurred for the {} times", existingMessage.get().getMessage().getEventUuid(), event.getOccurCount());
+    existingMessage.get().getMessage().setOccurCount(event.getOccurCount());
+
+    messageRepository.save(existingMessage.get());
     jmsTemplate.convertAndSend(topic, event);
   }
-
-
 }

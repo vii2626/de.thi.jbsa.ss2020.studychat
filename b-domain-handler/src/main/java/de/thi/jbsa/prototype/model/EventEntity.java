@@ -7,6 +7,7 @@ import javax.persistence.Enumerated;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
+import javax.validation.constraints.NotNull;
 
 import de.thi.jbsa.prototype.model.model.Message;
 import lombok.AllArgsConstructor;
@@ -31,5 +32,6 @@ public class EventEntity {
   private String value;
 
   @Enumerated
+  @NotNull
   private EventName eventName;
 }
